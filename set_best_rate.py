@@ -1,16 +1,24 @@
-from bfx_api_test_2 import BitfinexClient
+import os
+import sys
+
+sys.path.insert(0, '..')
+from UnofficialBitfinexGateway.bfxg import BitfinexClient
+
+from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic import Field
-from pydantic import validator
+from pydantic import field_validator
 from statistics import mean
 from datetime import datetime
 from datetime import timedelta
 from time import sleep
 
+load_dotenv("secrets.env")
 
 MAX_RATE = 0.001
 MIN_RATE = 0.00020
 MIN_FOR_30D = 0.00040
+
 
 class HistoryFundingOrders(BaseModel):
     order_id: str
@@ -32,9 +40,10 @@ class HistoryFundingOrders(BaseModel):
     rate: float
     period: int
 
-    @validator("date_created", "date_updated")
-    def convert_timestamp(cls, t:str) -> datetime:
-        date_ = str(datetime.fromtimestamp(int(t)/1000))
+    @field_validator("date_created", "date_updated")
+    def convert_timestamp(cls, t: str) -> datetime:
+        # date_ = str(datetime.fromtimestamp(int(t)/1000))
+        date_ = datetime.fromtimestamp(int(t)/1000)
         return date_
 
 
@@ -58,17 +67,19 @@ class ActiveFunding(BaseModel):
     rate: float
     period: int
 
-    @validator("date_created", "date_updated")
-    def convert_timestamp(cls, t:str) -> datetime:
+    @field_validator("date_created", "date_updated")
+    def convert_timestamp(cls, t: str) -> datetime:
         date_ = datetime.fromtimestamp(int(t)/1000)
         return date_
-    
+
+
 def get_average_max_rate(data: list) -> float:
     temp = []
     for r in data:
         temp.append(r[3])
 
     return mean(temp)
+
 
 def get_candles(symbol):
     result = client.get_candles(symbol, limit=5)
@@ -80,20 +91,25 @@ def get_candles(symbol):
     print(result)
     return result
 
+
 def display_float_value(v: float) -> str:
     # v = round(v, 8)
     v = f"{v:.8f}"
     return v
+
 
 def get_frr(symbol):
     result = client.get_ticker_statistics(symbol)
     print(result)
     return result[0]
 
+
 def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
     # mean_daily_high = get_candles(f"f{symbol}")
     mean_daily_high = float(get_frr(f"f{symbol}"))
     my_rate = mean_daily_high
+
+    my_rate = get_wall(symbol)
 
     print(my_rate)
 
@@ -108,7 +124,7 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
         print(temp_zostatok)
         
         for i in range(cascade_levels-1):
-            my_rate += 0.00001
+            my_rate -= 0.00001
 
             print(mean_daily_high)
             print(my_rate)
@@ -152,6 +168,7 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
     else:
         set_best_rate(symbol, available_balance, my_rate)
 
+
 def set_best_rate(symbol, available_balance, my_rate=None):
     # ticker_stat = client.get_ticker_statistics(f"f{symbol}")
     # daily_high = ticker_stat[11]
@@ -181,6 +198,7 @@ def set_best_rate(symbol, available_balance, my_rate=None):
 
     resp = client.set_funding_order(_type, _symbol, str(amount), str(rate), period, flags = 0)
     print(resp)
+
 
 def create_cascade(symbol, available_balance):
     temp = available_balance // 150
@@ -253,15 +271,59 @@ def create_cascade(symbol, available_balance):
     # resp = client.set_funding_order(_type, symbol, str(amount), str(rate), period, flags = 0)
     # print(resp)
 
-client = BitfinexClient()
+
+def get_wall(symbol):
+    data = client.get_order_book(symbol)
+    final_rate = 0
+    for row in data:
+        actual_rate = row[0]
+        if row[2] < 10000000:  # ten million
+            final_rate = actual_rate
+
+
+    # find a wall
+    # wall is when next rate level include incredibly amount of money then previous level
+    # 0.1 - 1234
+    # 0.2 - 2345
+    # 0.3 - 3456
+    # 0.4 - 852963 <- Wall
+    # 0.5 - 869999
+    previous_level_amount = 0
+    for i, row in enumerate(data):
+        if i == 0:
+            previous_level_amount = row[2]
+            continue
+
+        current_level_amount = row[2]
+
+        # print(previous_level_amount, current_level_amount)
+        # d = previous_level_amount * 100 / current_level_amount
+        # print(d)
+        if previous_level_amount * 100 / current_level_amount < 10 and row[2] > 10000000:
+            wall_level = row[0]
+            break
+
+        previous_level_amount = current_level_amount
+
+    # print(wall_level)
+    # print(previous_level_amount)
+
+    return wall_level
+
+
+api_key = os.getenv("API_KEY")
+api_secret = os.getenv("API_SECRET")
+
+client = BitfinexClient(key=api_key, secret=api_secret)
+
 symbol = "USD"
 
 if symbol == "USD":
     mim_amount = 150
 elif symbol == "LTC":
-    mim_amount = 2
+    mim_amount = 2  # TODO: recalculate every time based on current price
 else:
-    mim_amount = "sting over int to crash..." # todo: correct handle min_amounts per symbol - like calculate rate by actual price (?)
+    mim_amount = "sting over int to crash..."  # todo: correct handle min_amounts per symbol - like calculate rate by actual price (?)
 
 while True:
 
@@ -274,12 +336,10 @@ while True:
             print("I will try send request again after 1 second.")
             sleep(1)
 
-    
     for i, r in enumerate(result):
         print(r)
         row = ActiveFunding(order_id=r[0], symbol=r[1], date_created=str(r[2]), date_updated=str(r[3]), amount=r[4], amount_symbol=r[5], _type=r[6], flags=r[10], rate=r[14], period=r[15])
         print("{:<15}: {} {} {} {:<10} {} {}".format(row.order_id, row.date_created, row.date_updated, row.symbol, round(float(row.amount_symbol), 2), row.rate, row.period))
-
 
         now = datetime.today()
         # delta = timedelta(seconds=60)
