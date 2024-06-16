@@ -11,3 +11,10 @@ git clone https://github.com/MarcelSuleiman/SelfDriveFinancialResources.git
 git clone https://github.com/MarcelSuleiman/UnofficialBitfinexGateway.git
 ```
 or you can download it manually & unzip 
+
+## how ro run
+1) go to `SelfDriveFinancialResources` folder
+2) inside folder run command:
+```sh
+python set_best_rate.py
+```
