@@ -86,8 +86,6 @@ class SubmittedFundingOffer(BaseModel):
         return None
 
 
-
-
 class HistoryFundingOrders(BaseModel):
     order_id: str
     symbol: str
@@ -97,14 +95,14 @@ class HistoryFundingOrders(BaseModel):
     amount_symbol: int
     _type: str
     # flags: object
-    # none1: None
-    # none2: None
-    # none3: None
+    none1: None = None
+    none2: None = None
+    none3: None = None
     flags: str
-    # status: str
-    # none4: None
-    # none5: None
-    # none6: None
+    status: str
+    none4: None = None
+    none5: None = None
+    none6: None = None
     rate: float
     period: int
 
@@ -123,15 +121,15 @@ class ActiveFunding(BaseModel):
     amount: float
     amount_symbol: float
     _type: str
-    # flags: object
-    # none1: None
-    # none2: None
-    # none3: None
+    flags: object
+    none1: None = None
+    none2: None = None
+    none3: None = None
     flags: str
-    # status: str
-    # none4: None
-    # none5: None
-    # none6: None
+    status: str
+    none4: None = None
+    none5: None = None
+    none6: None = None
     rate: float
     period: int
 
@@ -223,26 +221,14 @@ def get_frr(symbol):
 
 
 def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
-    # mean_daily_high = get_candles(f"f{symbol}")
-    # mean_daily_high = float(get_frr(f"f{symbol}"))
-    # my_rate = mean_daily_high
-
     my_rate = get_wall(f"f{symbol}")
-
-    # print(my_rate)
 
     if available_balance > cascade_levels*150:
         temp = available_balance // cascade_levels
-        temp_zostatok = available_balance - ((cascade_levels-1)*temp)
-
-        # print(temp)
-        # print(temp_zostatok)
+        temp_balance = available_balance - ((cascade_levels-1)*temp)
         
         for i in range(cascade_levels-1):
             my_rate -= 0.00001
-
-            # print(mean_daily_high)
-            # print(my_rate)
             
             _type = "LIMIT"
             _symbol = f"f{symbol}"
@@ -256,67 +242,22 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
 
             _rate = display_float_value(rate)
 
-            # print(rate, type(rate))
-            # print(_rate, type(_rate))
-            resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags = 0)
+            resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags=0)
 
             offer = generate_offer_object(resp)
-
-            # offer = SubmittedFundingOffer(mst=resp[0], _type=resp[1], msg_id=resp[2], funding_offer_array=FundingOfferArray(*resp[4]), code=resp[5], status=resp[6], text=resp[7])
-            # offer = SubmittedFundingOffer(
-            #     mst=resp[0],
-            #     type_=resp[1],
-            #     msg_id=resp[2],
-            #     none1=resp[3],
-            #     funding_offer_array=FundingOfferArray(
-            #         id_=resp[4][0],
-            #         symbol=resp[4][1],
-            #         mts_created=resp[4][2],
-            #         mts_updated=resp[4][3],
-            #         amount=resp[4][4],
-            #         amount_original=resp[4][5],
-            #         offer_type=resp[4][6],
-            #         none1=resp[4][7],
-            #         none2=resp[4][8],
-            #         flags=resp[4][9],
-            #         offer_status=resp[4][10],
-            #         none3=resp[4][11],
-            #         none4=resp[4][12],
-            #         none5=resp[4][13],
-            #         rate=resp[4][14],
-            #         period=resp[4][15],
-            #         notify=resp[4][16],
-            #         hidden=resp[4][17],
-            #         none6=resp[4][18],
-            #         renew=resp[4][19]
-            #     ),
-            #     code=resp[5],
-            #     status=resp[6],
-            #     text=resp[7]
-            # )
-            # offer = SubmittedFundingOffer(
-            #     **{key: resp[i] for i, key in enumerate(SubmittedFundingOffer.__fields__.keys())}
-            # )
             print(offer)
 
         my_rate -= 0.00001
             
         _type = "LIMIT"
         _symbol = f"f{symbol}"
-        amount = str(temp_zostatok)
+        amount = str(temp_balance)
         rate = round(my_rate, 5)
-
-        # if rate > 0.00058:
-        #     period = 30
-        # else:
-        #     period = 2
 
         period = 2
 
         _rate = display_float_value(rate)
 
-        # print(rate, type(rate))
-        # print(_rate, type(_rate))
         resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags = 0)
         offer = generate_offer_object(resp)
         print(offer)
@@ -325,10 +266,6 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
 
 
 def set_best_rate(symbol, available_balance, my_rate=None):
-    # ticker_stat = client.get_ticker_statistics(f"f{symbol}")
-    # daily_high = ticker_stat[11]
-    # print(daily_high)
-    # my_rate = daily_high
 
     if my_rate is None:
         mean_daily_high = get_candles(f"f{symbol}")
@@ -348,8 +285,6 @@ def set_best_rate(symbol, available_balance, my_rate=None):
         period = 30
     else:
         period = 2
-
-    # period = 2
 
     resp = client.set_funding_order(_type, _symbol, str(amount), str(rate), period, flags = 0)
     offer = generate_offer_object(resp)
@@ -385,8 +320,6 @@ def create_cascade(symbol, available_balance):
 
         _rate = display_float_value(rate)
 
-        # print(rate, type(rate))
-        # print(_rate, type(_rate))
         resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags = 0)
         offer = generate_offer_object(resp)
         print(offer)
@@ -412,24 +345,6 @@ def create_cascade(symbol, available_balance):
             print(offer)
 
 
-    # my_rate = daily_high - 0.00002 # test, v skutocnosti by to mal byt -
-    # # my_rate = daily_high + 0.00005 # test, v skutocnosti by to mal byt -
-
-    # # my_rate = 0.0006
-
-    # _type = "LIMIT"
-    # symbol = "fUSD"
-    # amount = available_ltc_balance
-    # rate = round(my_rate, 6)
-    # period = 2
-
-    # print(amount)
-    # print(type(amount))
-
-    # resp = client.set_funding_order(_type, symbol, str(amount), str(rate), period, flags = 0)
-    # print(resp)
-
-
 def get_wall(symbol):
     data = client.get_order_book(symbol)
 
@@ -447,9 +362,6 @@ def get_wall(symbol):
             continue
 
         current_level_amount = row[2]
-
-        # d = previous_level_amount * 100 / current_level_amount
-        # print(d)
 
         if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
             wall_level = row[0]
@@ -484,7 +396,6 @@ while True:
             print("I will try send request again after 1 second.")
             sleep(1)
 
-    # print("Currently active funding(s):") if len(result) > 0 else print("Currently we doesn't have any active funding.")
     print("Currently active funding(s):") if len(result) > 0 else None
     for i, r in enumerate(result):
         row = ActiveFunding(
@@ -523,4 +434,4 @@ while True:
                 # set_best_rate(SYMBOL, available_balance)
                 set_best_rate_small_cascade(SYMBOL, available_balance, cascade_levels=5)
                 
-    sleep(5*60)  # every 5 minutes...
+    sleep(5*60)  # every 5 minutes... # TODO add argument reader if user want to run as demon or once every X minutes (cronjob, ...)
