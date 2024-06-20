@@ -16,9 +16,14 @@ from time import sleep
 load_dotenv("secrets.env")
 load_dotenv("setup.env")
 
+SYMBOL = os.getenv("SYMBOL")
+
 MAX_RATE = float(os.getenv("MAX_RATE"))
 MIN_RATE = float(os.getenv("MIN_RATE"))
 MIN_FOR_30D = float(os.getenv("MIN_FOR_30D"))
+
+PERCENTAGE_FOR_WALL_LEVEL = int(os.getenv("PERCENTAGE_FOR_WALL_LEVEL"))
+MAX_TOTAL_VALUE = int(os.getenv("MAX_TOTAL_VALUE"))
 
 
 class FundingOfferArray(BaseModel):
@@ -446,7 +451,7 @@ def get_wall(symbol):
         # d = previous_level_amount * 100 / current_level_amount
         # print(d)
 
-        if previous_level_amount * 100 / current_level_amount < 15 and row[2] > 100000000:
+        if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
             wall_level = row[0]
             return wall_level
 
@@ -461,11 +466,9 @@ api_secret = os.getenv("API_SECRET")
 
 client = BitfinexClient(key=api_key, secret=api_secret)
 
-symbol = "USD"
-
-if symbol == "USD":
+if SYMBOL == "USD":
     mim_amount = 150
-elif symbol == "LTC":
+elif SYMBOL == "LTC":
     mim_amount = 2  # TODO: recalculate every time based on current price
 else:
     mim_amount = "sting over int to crash..."  # todo: correct handle min_amounts per symbol - like calculate rate by actual price (?)
@@ -474,7 +477,7 @@ while True:
 
     while True:
         try:
-            result = client.get_active_funding_orders(f"f{symbol}")
+            result = client.get_active_funding_orders(f"f{SYMBOL}")
             break
         except ConnectionError as ce:
             print(f"{ce.__class__.__name__} - {str(ce)}")
@@ -507,17 +510,17 @@ while True:
 
     result = client.get_wallets()
     for r in result:
-        if r[0] == "funding" and r[1] == symbol:
+        if r[0] == "funding" and r[1] == SYMBOL:
             available_balance = float(r[4])
 
             now = datetime.now()
             t = now.strftime("%d-%m-%Y %H:%M:%S")
-            print(f"{t}\tDostupný zostatok na účte je: {round(available_balance, 2)} {symbol}")
+            print(f"{t}\tDostupný zostatok na účte je: {round(available_balance, 2)} {SYMBOL}")
 
             if available_balance >= mim_amount:
 
-                # create_cascade(symbol, available_balance)
-                # set_best_rate(symbol, available_balance)
-                set_best_rate_small_cascade(symbol, available_balance, cascade_levels=5)
+                # create_cascade(SYMBOL, available_balance)
+                # set_best_rate(SYMBOL, available_balance)
+                set_best_rate_small_cascade(SYMBOL, available_balance, cascade_levels=5)
                 
     sleep(5*60)  # every 5 minutes...
