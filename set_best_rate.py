@@ -20,6 +20,9 @@ MAX_RATE = float(os.getenv("MAX_RATE"))
 MIN_RATE = float(os.getenv("MIN_RATE"))
 MIN_FOR_30D = float(os.getenv("MIN_FOR_30D"))
 
+PERCENTAGE_FOR_WALL_LEVEL = int(os.getenv("PERCENTAGE_FOR_WALL_LEVEL"))
+MAX_TOTAL_VALUE = int(os.getenv("MAX_TOTAL_VALUE"))
+
 
 class FundingOfferArray(BaseModel):
     id_: int
@@ -446,7 +449,7 @@ def get_wall(symbol):
         # d = previous_level_amount * 100 / current_level_amount
         # print(d)
 
-        if previous_level_amount * 100 / current_level_amount < 15 and row[2] > 100000000:
+        if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
             wall_level = row[0]
             return wall_level
 
