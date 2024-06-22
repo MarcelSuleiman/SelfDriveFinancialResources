@@ -36,5 +36,5 @@ or you can download it manually & unzip
 7) Rename file from `secrets_template.env` to `secrets.env`
 8) Navigate your terminal (bash, cmd, powershell, ...) to folder `..\SelfDriveFinancialResources` and run command:
 ```sh
-python set_best_rate.py
+python set_best_rate.py -d 1
 ```
