@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, '..')
 from UnofficialBitfinexGateway.bfxg import BitfinexClient
 
+import argparse
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic import Field
@@ -377,6 +378,15 @@ api_key = os.getenv("API_KEY")
 api_secret = os.getenv("API_SECRET")
 
 client = BitfinexClient(key=api_key, secret=api_secret)
+parser = argparse.ArgumentParser("SelfDriveFinancialResource")
+parser.add_argument(
+    "-d", "--daemon",
+    choices=["0", "1"],
+    default="1",
+    type=str
+)
+args = parser.parse_args()
+
 
 if SYMBOL == "USD":
     mim_amount = 150
@@ -434,4 +444,7 @@ while True:
                 # set_best_rate(SYMBOL, available_balance)
                 set_best_rate_small_cascade(SYMBOL, available_balance, cascade_levels=5)
                 
-    sleep(5*60)  # every 5 minutes... # TODO add argument reader if user want to run as demon or once every X minutes (cronjob, ...)
+    if args.daemon == "1":
+        sleep(5*60)  # every 5 minutes...
+    else:
+        sys.exit(0)
