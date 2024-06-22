@@ -27,6 +27,38 @@ PERCENTAGE_FOR_WALL_LEVEL = int(os.getenv("PERCENTAGE_FOR_WALL_LEVEL"))
 MAX_TOTAL_VALUE = int(os.getenv("MAX_TOTAL_VALUE"))
 
 
+class TICKER_TRADING(BaseModel):
+    bid: float
+    bid_size: float
+    ask: float
+    ask_size: float
+    daily_change: float
+    daily_change_relative: float
+    last_price: float
+    volume: float
+    high: float
+    low: float
+
+
+class TICKER_FUNDING(BaseModel):
+    frr: float
+    bid: float
+    bid_period: int
+    bid_size: float
+    ask: float
+    ask_period: int
+    ask_size: float
+    daily_change: float
+    daily_change_perc: float
+    last_price: float
+    volume: float
+    high: float
+    low: float
+    none1: None = None
+    none2: None = None
+    frr_amount_available: float
+
+
 class FundingOfferArray(BaseModel):
     id_: int
     symbol: str
@@ -374,26 +406,72 @@ def get_wall(symbol):
     return get_frr(symbol)
 
 
+def generate_ticker_object(data, type_):
+    if type_ == "t":
+        ticker = TICKER_TRADING(
+            bid=data[0],
+            bid_size=data[1],
+            ask=data[2],
+            ask_size=data[3],
+            daily_change=data[4],
+            daily_change_relative=data[5],
+            last_price=data[6],
+            volume=data[7],
+            high=data[8],
+            low=data[9],
+        )
+        return ticker
+
+    if type_ == "f":
+        ticker = TICKER_FUNDING(
+            frr=data[0],
+            bid=data[1],
+            bid_period=data[2],
+            bid_size=data[3],
+            ask=data[4],
+            ask_period=data[5],
+            ask_size=data[6],
+            daily_change=data[7],
+            daily_change_perc=data[8],
+            last_price=data[9],
+            volume=data[10],
+            high=data[11],
+            low=data[12],
+            none1=data[13],
+            none2=data[14],
+            frr_amount_available=data[15]
+        )
+        return ticker
+
+    return TypeError(f"Asked type: '{type_}' is not valid. Choose 't' as trading or 'f' as funding")
+
+
 api_key = os.getenv("API_KEY")
 api_secret = os.getenv("API_SECRET")
 
 client = BitfinexClient(key=api_key, secret=api_secret)
 parser = argparse.ArgumentParser("SelfDriveFinancialResource")
 parser.add_argument(
-    "-d", "--daemon",
+    "-D", "--daemon",
     choices=["0", "1"],
     default="1",
     type=str
 )
+parser.add_argument(
+    "-S", "--symbol",
+    choices=["USD", "TSUD", "LTC"],
+    default="USD",
+    type=str
+)
 args = parser.parse_args()
 
-
-if SYMBOL == "USD":
+if SYMBOL == "USD" or SYMBOL == "USDT":
     mim_amount = 150
-elif SYMBOL == "LTC":
-    mim_amount = 2  # TODO: recalculate every time based on current price
 else:
-    mim_amount = "sting over int to crash..."  # todo: correct handle min_amounts per symbol - like calculate rate by actual price (?)
+    type_ = "t"
+    data = client.get_ticker(symbol=SYMBOL, type_=type_)
+    ticker = generate_ticker_object(data=data, type_=type_)
+    mim_amount = 150 / ticker.last_price
 
 while True:
 
@@ -447,4 +525,5 @@ while True:
     if args.daemon == "1":
         sleep(5*60)  # every 5 minutes...
     else:
+        # Býva sa tu dobre, ale žiť sa tu nedá. Source: https://www.instagram.com/p/C6N9ppiAaRm/
         sys.exit(0)
