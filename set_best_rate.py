@@ -27,7 +27,7 @@ PERCENTAGE_FOR_WALL_LEVEL = int(os.getenv("PERCENTAGE_FOR_WALL_LEVEL"))
 MAX_TOTAL_VALUE = int(os.getenv("MAX_TOTAL_VALUE"))
 
 
-class TICKER_TRADING(BaseModel):
+class TickerTrading(BaseModel):
     bid: float
     bid_size: float
     ask: float
@@ -40,7 +40,7 @@ class TICKER_TRADING(BaseModel):
     low: float
 
 
-class TICKER_FUNDING(BaseModel):
+class TickerFunding(BaseModel):
     frr: float
     bid: float
     bid_period: int
@@ -293,7 +293,7 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
 
         _rate = display_float_value(rate)
 
-        resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags = 0)
+        resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags=0)
         offer = generate_offer_object(resp)
         print(offer)
     else:
@@ -321,7 +321,7 @@ def set_best_rate(symbol, available_balance, my_rate=None):
     else:
         period = 2
 
-    resp = client.set_funding_order(_type, _symbol, str(amount), str(rate), period, flags = 0)
+    resp = client.set_funding_order(_type, _symbol, str(amount), str(rate), period, flags=0)
     offer = generate_offer_object(resp)
     print(offer)
 
@@ -375,7 +375,7 @@ def create_cascade(symbol, available_balance):
             else:
                 period = 2
 
-            resp = client.set_funding_order(_type, _symbol, str(amount), str(rate), period, flags = 0)
+            resp = client.set_funding_order(_type, _symbol, str(amount), str(rate), period, flags=0)
             offer = generate_offer_object(resp)
             print(offer)
 
@@ -410,7 +410,7 @@ def get_wall(symbol):
 
 def generate_ticker_object(data, type_):
     if type_ == "t":
-        ticker = TICKER_TRADING(
+        ticker = TickerTrading(
             bid=data[0],
             bid_size=data[1],
             ask=data[2],
@@ -425,7 +425,7 @@ def generate_ticker_object(data, type_):
         return ticker
 
     if type_ == "f":
-        ticker = TICKER_FUNDING(
+        ticker = TickerFunding(
             frr=data[0],
             bid=data[1],
             bid_period=data[2],
