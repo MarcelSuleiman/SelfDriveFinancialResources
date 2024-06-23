@@ -147,28 +147,30 @@ class HistoryFundingOrders(BaseModel):
 
 
 class ActiveFunding(BaseModel):
-    order_id: int
+    id: int
     symbol: str
     date_created: datetime
     date_updated: datetime
     amount: float
     amount_symbol: float
-    _type: str
-    flags: object
+    type: str
     none1: None = None
     none2: None = None
-    none3: None = None
-    flags: str
+    flags: object
     status: str
+    none3: None = None
     none4: None = None
     none5: None = None
-    none6: None = None
     rate: float
     period: int
+    notify: int
+    hidden: int
+    none6: None = None
+    renew: int
 
     def __str__(self):
         line = "{:<15}: {} {} {:<10} {} {}".format(
-            self.order_id,
+            self.id,
             self.date_created,
             self.symbol,
             self.amount_symbol,
@@ -487,16 +489,26 @@ while True:
     print("Currently active funding(s):") if len(result) > 0 else None
     for i, r in enumerate(result):
         row = ActiveFunding(
-            order_id=r[0],
+            id=r[0],
             symbol=r[1],
             date_created=r[2],
             date_updated=r[3],
             amount=r[4],
             amount_symbol=r[5],
-            _type=r[6],
-            flags=r[10],
+            type=r[6],
+            none1=r[7],
+            none2=r[8],
+            flags=r[9],
+            status=r[10],
+            none3=r[11],
+            none4=r[12],
+            none5=r[13],
             rate=r[14],
-            period=r[15]
+            period=r[15],
+            notify=r[16],
+            hidden=r[17],
+            none6=r[18],
+            renew=r[19],
         )
         print(row)
 
@@ -505,7 +517,7 @@ while True:
         frame = now - delta
 
         if frame > row.date_created:
-            client.set_cancel_funding_order(row.order_id)
+            client.set_cancel_funding_order(row.id)
 
     result = client.get_wallets()
     for r in result:
