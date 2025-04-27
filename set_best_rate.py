@@ -403,7 +403,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-if SYMBOL == "USD" or SYMBOL == "USDT":
+if SYMBOL in ["USD", "USDT", "EUR"]:
     mim_amount = 150
 else:
     type_ = "t"
@@ -457,6 +457,7 @@ while True:
             client.set_cancel_funding_order(row.id)
 
     result = client.get_wallets()
+    available_balance = None
     for r in result:
         if r[0] == "funding" and r[1] == SYMBOL:
             available_balance = float(r[4])
@@ -491,6 +492,12 @@ while True:
                     set_best_rate(
                         symbol=SYMBOL, available_balance=available_balance, strategy=args.funding_book_strategy
                     )
+
+    if available_balance is None:
+        print(
+            f"No {SYMBOL} wallet found"
+        )
+        sys.exit(1)
 
     if args.daemon == "1":
         sleep(5*60)  # every 5 minutes...
