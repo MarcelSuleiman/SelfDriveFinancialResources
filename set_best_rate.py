@@ -1,20 +1,38 @@
 import os
 import sys
 
-from models import TickerTrading, TickerFunding, ActiveFunding, FundingOfferArray, SubmittedFundingOffer
+from models import ActiveFunding
+from models import FundingOfferArray
+from models import TickerFunding
+from models import TickerTrading
+from models import SubmittedFundingOffer
 
-sys.path.insert(0, '..')
-from UnofficialBitfinexGateway.bfxg import BitfinexClient
+
+# local_dir = os.path.dirname(__file__)
+# lib_dir = os.path.dirname(os.path.dirname(__file__)) + "\\lib\\UnofficialBitfinexGateway"
+# sys.path.insert(0, local_dir)
+# sys.path.insert(0, lib_dir)
+from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
+
+# sys.path.insert(0, '..')
+# sys.path.append('../')
+# from UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 import argparse
 from dotenv import load_dotenv
-from statistics import mean
 from datetime import datetime
 from datetime import timedelta
 from time import sleep
+from statistics import mean
+# import sqlite3
 
-load_dotenv("secrets.env")
-load_dotenv("setup.env")
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(script_dir, "secrets.env"))
+load_dotenv(os.path.join(script_dir, "setup.env"))
+
+# load_dotenv("secrets.env")
+# load_dotenv("setup.env")
 
 SYMBOL = os.getenv("SYMBOL")
 
@@ -26,8 +44,7 @@ PERCENTAGE_FOR_WALL_LEVEL = int(os.getenv("PERCENTAGE_FOR_WALL_LEVEL"))
 MAX_TOTAL_VALUE = int(os.getenv("MAX_TOTAL_VALUE"))
 
 
-
-def generate_offer_object(resp):
+def generate_offer_object(resp: list[str]) -> SubmittedFundingOffer:
     offer = SubmittedFundingOffer(
         mst=resp[0],
         type_=resp[1],
@@ -93,16 +110,39 @@ def get_frr(symbol):
     return result[0]
 
 
-def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
-    my_rate = get_wall(f"f{symbol}")
+def check_amount_of_funds(available_balance: float, cascade_levels: int) -> bool:
+    if available_balance > cascade_levels * 150:
+        return True
+    return False
+
+def set_best_rate_small_cascade(
+        symbol: str,
+        available_balance: float,
+        cascade_levels: int,
+        strategy: str,
+        cs_step: str,
+        cascade_vertical_movement: str
+):
+
+    if strategy == "FRR":
+        my_rate = get_frr(f"f{symbol}")
+
+    else:
+        my_rate = get_wall(f"f{symbol}")
 
     if available_balance > cascade_levels*150:
         temp = available_balance // cascade_levels
         temp_balance = available_balance - ((cascade_levels-1)*temp)
-        
+
         for i in range(cascade_levels-1):
-            my_rate -= 0.00001
-            
+            # mean if step is 1 => 0.00001, if 3 -> 0.00003 etc
+            if cascade_vertical_movement == "down":
+                my_rate -= float("0.0000"+cs_step)
+            elif cascade_vertical_movement == "up":
+                my_rate += float("0.0000" + cs_step)
+            else:
+                raise ValueError(f"Vertical movement value {cascade_vertical_movement} is not valid.")
+
             _type = "LIMIT"
             _symbol = f"f{symbol}"
             amount = temp
@@ -120,8 +160,12 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
             offer = generate_offer_object(resp)
             print(offer)
 
-        my_rate -= 0.00001
-            
+        # mean if step is 1 => 0.00001, if 3 -> 0.00003 etc
+        if cascade_vertical_movement == "down":
+            my_rate -= float("0.0000" + cs_step)
+        elif cascade_vertical_movement == "up":
+            my_rate += float("0.0000" + cs_step)
+
         _type = "LIMIT"
         _symbol = f"f{symbol}"
         amount = str(temp_balance)
@@ -138,9 +182,16 @@ def set_best_rate_small_cascade(symbol, available_balance, cascade_levels):
         set_best_rate(symbol, available_balance, my_rate)
 
 
-def set_best_rate(symbol, available_balance, my_rate=None):
+def set_best_rate(symbol, available_balance, strategy: str, my_rate=None):
 
-    if my_rate is None:
+    # my_rate = get_frr(f"f{symbol}")
+    if strategy == "FRR":
+        my_rate = get_frr(f"f{symbol}")
+
+    if strategy == "WALL":
+        my_rate = get_wall(f"f{symbol}")
+
+    if strategy == "mean_daily_high":
         mean_daily_high = get_candles(f"f{symbol}")
         my_rate = mean_daily_high
 
@@ -186,14 +237,14 @@ def create_cascade(symbol, available_balance):
         amount = "150"
         rate = round(my_rate, 5)
 
-        if rate > 0.00055:
+        if rate > MIN_FOR_30D:
             period = 30
         else:
             period = 2
 
         _rate = display_float_value(rate)
 
-        resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags = 0)
+        resp = client.set_funding_order(_type, _symbol, str(amount), str(_rate), period, flags=0)
         offer = generate_offer_object(resp)
         print(offer)
 
@@ -235,6 +286,7 @@ def get_wall(symbol):
             continue
 
         current_level_amount = row[2]
+        print(current_level_amount)
 
         if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
             wall_level = row[0]
@@ -298,11 +350,42 @@ parser.add_argument(
     type=str
 )
 parser.add_argument(
-    "-S", "--symbol",
-    choices=["USD", "TSUD", "LTC"],
+    "-C", "--currency",
+    choices=["USD", "USDT", "LTC"],
     default="USD",
     type=str
 )
+parser.add_argument(
+    "-S", "--strategy",
+    choices=["cascade", "single"],
+    default="single",
+    type=str
+)
+parser.add_argument(
+    "-CL", "--cascade_levels",
+    choices=[str(i) for i in range(1, 10)], # ["1", "2", ... "9"]
+    default="2",
+    type=str
+)
+parser.add_argument(
+    "-CS", "--cascade_steps",
+    choices=[str(i) for i in range(1, 10)], # ["1", "2", ... "9"]
+    default="1",
+    type=str
+)
+parser.add_argument(
+    "-CVM", "--cascade_vertical_movement",
+    choices=["up", "down"],
+    default="down",
+    type=str
+)
+parser.add_argument(
+    "-FBS", "--funding_book_strategy",
+    choices=["FRR", "WALL"],
+    default="FRR",
+    type=str
+)
+
 args = parser.parse_args()
 
 if SYMBOL == "USD" or SYMBOL == "USDT":
@@ -355,6 +438,7 @@ while True:
         frame = now - delta
 
         if frame > row.date_created:
+            # continue
             client.set_cancel_funding_order(row.id)
 
     result = client.get_wallets()
@@ -364,14 +448,35 @@ while True:
 
             now = datetime.now()
             t = now.strftime("%d-%m-%Y %H:%M:%S")
-            print(f"{t}\tDostupný zostatok na účte je: {round(available_balance, 2)} {SYMBOL}")
+            print(f"{t}\tThe available balance on the account is: {round(available_balance, 2)} {SYMBOL}")
 
             if available_balance >= mim_amount:
 
-                # create_cascade(SYMBOL, available_balance)
-                # set_best_rate(SYMBOL, available_balance)
-                set_best_rate_small_cascade(SYMBOL, available_balance, cascade_levels=5)
-                
+                if args.strategy == "cascade":
+                    valid_amount = check_amount_of_funds(available_balance, int(args.cascade_levels))
+                    if valid_amount:
+                        set_best_rate_small_cascade(
+                            symbol=SYMBOL,
+                            available_balance=available_balance,
+                            cascade_levels=int(args.cascade_levels),
+                            strategy=args.funding_book_strategy,
+                            cs_step=args.cascade_steps,
+                            cascade_vertical_movement=args.cascade_vertical_movement
+                        )
+                    else:
+                        print(
+                            f"Available amount of funds: {available_balance} is not enough "
+                            f"for {args.cascade_levels} levels. "
+                            f"Minimal required amount is: {150*int(args.cascade_levels)}"
+                        )
+                        # TODO: add decreasing cascade levels to fit minimal requirements
+                        args.strategy = "single"
+
+                if args.strategy == "single":
+                    set_best_rate(
+                        symbol=SYMBOL, available_balance=available_balance, strategy=args.funding_book_strategy
+                    )
+
     if args.daemon == "1":
         sleep(5*60)  # every 5 minutes...
     else:

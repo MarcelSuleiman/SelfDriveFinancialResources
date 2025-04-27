@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
@@ -71,10 +72,10 @@ class FundingOfferArray(BaseModel):
 class SubmittedFundingOffer(BaseModel):
     mst: str
     type_: str
-    msg_id: int | None
-    none1: None = None
-    funding_offer_array: FundingOfferArray | None = None
-    code: int | None
+    msg_id: Optional[int] = None
+    none1: Optional[None] = None
+    funding_offer_array: FundingOfferArray or None = None
+    code: Optional[int] = None
     status: str
     text: str
 
@@ -145,12 +146,12 @@ class ActiveFunding(BaseModel):
     renew: int
 
     def __str__(self):
-        line = "{:<15}: {} {} {:<10} {} {}".format(
+        line = "{:<15}: {} {} {:<10} interest: {}% per day - preset period: {} days".format(
             self.id,
             self.date_created,
             self.symbol,
-            self.amount_symbol,
-            self.rate,
+            round(self.amount_symbol, 2),
+            f"{self.rate * 100}",
             self.period
         )
 
