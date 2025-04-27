@@ -3,17 +3,19 @@ import sys
 from datetime import datetime
 from datetime import timedelta
 from time import sleep
+from typing import List, Any
 
-import argparse
-from argparse import RawTextHelpFormatter
 from dotenv import load_dotenv
 from statistics import mean
 
+from currencies import CURRENCIES
+from input_parser import compose_input_parser
 from models import ActiveFunding
 from models import FundingOfferArray
 from models import TickerFunding
 from models import TickerTrading
 from models import SubmittedFundingOffer
+from services.active_funding_service import get_active_fundings
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from UnofficialBitfinexGateway.bfxg import BitfinexClient
@@ -22,9 +24,6 @@ from UnofficialBitfinexGateway.bfxg import BitfinexClient
 script_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(script_dir, "secrets.env"))
 load_dotenv(os.path.join(script_dir, "setup.env"))
-
-# load_dotenv("secrets.env")
-# load_dotenv("setup.env")
 
 SYMBOL = os.getenv("SYMBOL")
 
@@ -80,7 +79,7 @@ def get_average_max_rate(data: list) -> float:
     return mean(temp)
 
 
-def get_candles(symbol):
+def get_candles(client: BitfinexClient, symbol: str):
     result = client.get_candles(symbol, limit=5)
 
     print(result)
@@ -97,7 +96,7 @@ def display_float_value(v: float) -> str:
     return v
 
 
-def get_frr(symbol):
+def get_frr(client: BitfinexClient, symbol: str):
     result = client.get_ticker_statistics(symbol)
     return result[0]
 
@@ -107,7 +106,9 @@ def check_amount_of_funds(available_balance: float, cascade_levels: int) -> bool
         return True
     return False
 
+
 def set_best_rate_small_cascade(
+        client: BitfinexClient,
         symbol: str,
         available_balance: float,
         cascade_levels: int,
@@ -117,10 +118,10 @@ def set_best_rate_small_cascade(
 ):
 
     if strategy == "FRR":
-        my_rate = get_frr(f"f{symbol}")
+        my_rate = get_frr(client=client, symbol=f"f{symbol}")
 
     else:
-        my_rate = get_wall(f"f{symbol}")
+        my_rate = get_wall(client=client, symbol=f"f{symbol}")
 
     if available_balance > cascade_levels*150:
         temp = available_balance // cascade_levels
@@ -171,20 +172,20 @@ def set_best_rate_small_cascade(
         offer = generate_offer_object(resp)
         print(offer)
     else:
-        set_best_rate(symbol, available_balance, my_rate)
+        set_best_rate(client=client, symbol=symbol, available_balance=available_balance, strategy=strategy, my_rate=my_rate)
 
 
-def set_best_rate(symbol, available_balance, strategy: str, my_rate=None):
+def set_best_rate(client: BitfinexClient, symbol: str, available_balance: float, strategy: str, my_rate=None):
 
     # my_rate = get_frr(f"f{symbol}")
     if strategy == "FRR":
-        my_rate = get_frr(f"f{symbol}")
+        my_rate = get_frr(client=client, symbol=f"f{symbol}")
 
     if strategy == "WALL":
-        my_rate = get_wall(f"f{symbol}")
+        my_rate = get_wall(client=client, symbol=f"f{symbol}")
 
     if strategy == "mean_daily_high":
-        mean_daily_high = get_candles(f"f{symbol}")
+        mean_daily_high = get_candles(client=client, symbol=f"f{symbol}")
         my_rate = mean_daily_high
 
     my_rate -= 0.00001
@@ -207,7 +208,7 @@ def set_best_rate(symbol, available_balance, strategy: str, my_rate=None):
     print(offer)
 
 
-def create_cascade(symbol, available_balance):
+def create_cascade(client: BitfinexClient, symbol: str, available_balance: float):
     temp = available_balance // 150
     no_offers = temp - 1 # chcem vyuzit vsetky peniaze preto posledna caskada bude full
     print(temp)
@@ -261,7 +262,7 @@ def create_cascade(symbol, available_balance):
             print(offer)
 
 
-def get_wall(symbol):
+def get_wall(client: BitfinexClient, symbol: str):
     data = client.get_order_book(symbol)
 
     # find a wall
@@ -287,7 +288,7 @@ def get_wall(symbol):
         previous_level_amount = current_level_amount
 
     # if in some reason function is not able to set correct wall level, use FRR
-    return get_frr(symbol)
+    return get_frr(client=client, symbol=symbol)
 
 
 def generate_ticker_object(data, type_):
@@ -330,177 +331,115 @@ def generate_ticker_object(data, type_):
     return TypeError(f"Asked type: '{type_}' is not valid. Choose 't' as trading or 'f' as funding")
 
 
-api_key = os.getenv("API_KEY")
-api_secret = os.getenv("API_SECRET")
+def get_credentials():
+    api_key = os.getenv("API_KEY")
+    api_secret = os.getenv("API_SECRET")
+    return api_key, api_secret
 
-client = BitfinexClient(key=api_key, secret=api_secret)
-parser = argparse.ArgumentParser("SelfDriveFinancialResource", formatter_class=RawTextHelpFormatter)
-parser.add_argument(
-    "-D", "--daemon",
-    choices=["0", "1"],
-    default="1",
-    type=str,
-    help="This sets whether the script should run in a loop (value 1) "
-         "or shut down (value 0) after a bid is placed on the market."
-)
-parser.add_argument(
-    "-C", "--currency",
-    choices=["USD", "USDT", "LTC"],
-    default="USD",
-    type=str,
-    help="What currency to be processed."
-)
-parser.add_argument(
-    "-S", "--strategy",
-    choices=["cascade", "single"],
-    default="single",
-    type=str,
-    help="Which strategy should be applied when placing a bid.\n"
-         "single: means that the entire available amount is taken and a bid for a single value (interest rate) is entered.\n"
-         "cascade: means that the entire available amount is divided into as many parts as specified in the "
-         "-CL (--cascade_levels)\n\t parameter and the individual commands are successively set to the values "
-         "calculated on the basis of -CS, -CVM and -FSB"
-)
-parser.add_argument(
-    "-CL", "--cascade_levels",
-    choices=[str(i) for i in range(1, 10)], # ["1", "2", ... "9"]
-    default="2",
-    type=str,
-    help="How many levels to apply - but how many parts to divide the amount.\n"
-         "\tExample: 3 means that the notional amount of available funds ($1500) is divided into 3 parts of $500 each"
-)
-parser.add_argument(
-    "-CS", "--cascade_steps",
-    choices=[str(i) for i in range(1, 10)], # ["1", "2", ... "9"]
-    default="1",
-    type=str,
-    help="In what steps will the interest rates be adjusted depending on the -CVM value.\n"
-         "\tExample: a value of 2 at the current interest rate of 0.045 percent per day (mathematically 0.00045)\n"
-         "\tmeans that 1 bid will be at 0.00045, the second at 0.00043, the third at 0.00041, etc."
-)
-parser.add_argument(
-    "-CVM", "--cascade_vertical_movement",
-    choices=["up", "down"],
-    default="down",
-    type=str,
-    help="In case of cascade and -CS higher than 1 in which direction the levels should be set.\n"
-         "up - means 0.045, 0.046, 0.047...\n"
-         "down - 0.045, 0.044, 0.043..."
-)
-parser.add_argument(
-    "-FBS", "--funding_book_strategy",
-    choices=["FRR", "WALL"],
-    default="FRR",
-    type=str,
-    help="FRR - This rate is not based on an agreed fixed rate.\n"
-         "\tInstead, it is based on the average of all active fixed-rate fundings weighted by their amount.\n"
-         "\tThis rate updates once per hour, allowing you to get rates that follow market action.\n"
-         "WALL - the script is trying to find an interest rate where a lot of money has been sent by other people\n"
-         "\tand thus they have created a wall - a dam above which it is very difficult to squeeze the interest because\n"
-         "\tthere are enough funds to cover all the requirements. The WALL value lowers the interest by 0.0001 and\n"
-         "\tsets the bid to an achievable value. This is usually more than the current FRR."
-)
 
-args = parser.parse_args()
+def get_min_amount(client: BitfinexClient) -> int:
+    if SYMBOL in CURRENCIES:
+        mim_amount = 150
+    else:
+        type_ = "t"
+        data = client.get_ticker(symbol=SYMBOL, type_=type_)
+        ticker = generate_ticker_object(data=data, type_=type_)
+        mim_amount = 150 / ticker.last_price
 
-if SYMBOL in ["USD", "USDT", "EUR"]:
-    mim_amount = 150
-else:
-    type_ = "t"
-    data = client.get_ticker(symbol=SYMBOL, type_=type_)
-    ticker = generate_ticker_object(data=data, type_=type_)
-    mim_amount = 150 / ticker.last_price
+    return mim_amount
 
-while True:
 
+def get_active_funding_orders(client: BitfinexClient) -> dict or str:
     while True:
         try:
-            result = client.get_active_funding_orders(f"f{SYMBOL}")
-            break
+            active_funding_orders = client.get_active_funding_orders(f"f{SYMBOL}")
+            return active_funding_orders
         except ConnectionError as ce:
             print(f"{ce.__class__.__name__} - {str(ce)}")
             print("I will try send request again after 1 second.")
             sleep(1)
 
-    print("Currently active funding(s):") if len(result) > 0 else None
-    for i, r in enumerate(result):
-        row = ActiveFunding(
-            id=r[0],
-            symbol=r[1],
-            date_created=r[2],
-            date_updated=r[3],
-            amount=r[4],
-            amount_symbol=r[5],
-            type=r[6],
-            none1=r[7],
-            none2=r[8],
-            flags=r[9],
-            status=r[10],
-            none3=r[11],
-            none4=r[12],
-            none5=r[13],
-            rate=r[14],
-            period=r[15],
-            notify=r[16],
-            hidden=r[17],
-            none6=r[18],
-            renew=r[19],
-        )
-        print(row)
 
-        now = datetime.today()
-        delta = timedelta(hours=4)
-        frame = now - delta
+def get_available_balance_from_proper_wallet(wallets: List[List[Any]], symbol: str) -> float or None:
+    for wallet in wallets:
+        if wallet[0] == "funding" and wallet[1] == symbol:
+            available_balance = float(wallet[4])
+            return available_balance
 
-        if frame > row.date_created:
-            # continue
-            client.set_cancel_funding_order(row.id)
+    return None
 
-    result = client.get_wallets()
-    available_balance = None
-    for r in result:
-        if r[0] == "funding" and r[1] == SYMBOL:
-            available_balance = float(r[4])
 
-            now = datetime.now()
-            t = now.strftime("%d-%m-%Y %H:%M:%S")
-            print(f"{t}\tThe available balance on the account is: {round(available_balance, 2)} {SYMBOL}")
+def main():
+    api_key, api_secret = get_credentials()
+    client = BitfinexClient(key=api_key, secret=api_secret)
+    args = compose_input_parser()
 
-            if available_balance >= mim_amount:
+    mim_amount = get_min_amount(client=client)
 
-                if args.strategy == "cascade":
-                    valid_amount = check_amount_of_funds(available_balance, int(args.cascade_levels))
-                    if valid_amount:
-                        set_best_rate_small_cascade(
-                            symbol=SYMBOL,
-                            available_balance=available_balance,
-                            cascade_levels=int(args.cascade_levels),
-                            strategy=args.funding_book_strategy,
-                            cs_step=args.cascade_steps,
-                            cascade_vertical_movement=args.cascade_vertical_movement
-                        )
-                    else:
-                        print(
-                            f"Available amount of funds: {available_balance} is not enough "
-                            f"for {args.cascade_levels} levels. "
-                            f"Minimal required amount is: {150*int(args.cascade_levels)}"
-                        )
-                        # TODO: add decreasing cascade levels to fit minimal requirements
-                        args.strategy = "single"
+    while True:
+        active_funding_orders = get_active_funding_orders(client=client)
+        list_active_funding_orders = get_active_fundings(active_funding_orders)
 
-                if args.strategy == "single":
-                    set_best_rate(
-                        symbol=SYMBOL, available_balance=available_balance, strategy=args.funding_book_strategy
+        if len(list_active_funding_orders) > 0:
+            print("Currently active funding(s):")
+            for row in list_active_funding_orders:
+                print(row)
+                now = datetime.today()
+                delta = timedelta(hours=4)
+                frame = now - delta
+
+                if frame > row.date_created:
+                    client.set_cancel_funding_order(row.id)
+
+        wallets = client.get_wallets()
+        available_balance = get_available_balance_from_proper_wallet(wallets=wallets, symbol=SYMBOL)
+        t = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        print(f"{t}\tThe available balance on the account is: {round(available_balance, 2)} {SYMBOL}")
+
+        if available_balance is not None and available_balance >= mim_amount:
+
+            if args.strategy == "cascade":
+                valid_amount = check_amount_of_funds(available_balance, int(args.cascade_levels))
+                if valid_amount:
+                    set_best_rate_small_cascade(
+                        client=client,
+                        symbol=SYMBOL,
+                        available_balance=available_balance,
+                        cascade_levels=int(args.cascade_levels),
+                        strategy=args.funding_book_strategy,
+                        cs_step=args.cascade_steps,
+                        cascade_vertical_movement=args.cascade_vertical_movement
                     )
+                else:
+                    print(
+                        f"Available amount of funds: {available_balance} is not enough "
+                        f"for {args.cascade_levels} levels. "
+                        f"Minimal required amount is: {150 * int(args.cascade_levels)}"
+                    )
+                    # TODO: add decreasing cascade levels to fit minimal requirements
+                    args.strategy = "single"
 
-    if available_balance is None:
-        print(
-            f"No {SYMBOL} wallet found"
-        )
-        sys.exit(1)
+            if args.strategy == "single":
+                set_best_rate(
+                    client=client,
+                    symbol=SYMBOL,
+                    available_balance=available_balance,
+                    strategy=args.funding_book_strategy
+                )
 
-    if args.daemon == "1":
-        sleep(5*60)  # every 5 minutes...
-    else:
-        # Býva sa tu dobre, ale žiť sa tu nedá. Source: https://www.instagram.com/p/C6N9ppiAaRm/
-        sys.exit(0)
+        if available_balance is None:
+            print(
+                f"No {SYMBOL} wallet found"
+            )
+            sys.exit(1)
+
+        if args.daemon == "1":
+            sleep(5 * 60)  # every 5 minutes...
+        else:
+            # Býva sa tu dobre, ale žiť sa tu nedá. Source: https://www.instagram.com/p/C6N9ppiAaRm/
+            sys.exit(0)
+
+
+if __name__ == "__main__":
+    # TODO replace all prints by logger - to console & log file
+    main()
