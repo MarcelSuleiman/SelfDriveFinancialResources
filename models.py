@@ -146,12 +146,12 @@ class ActiveFunding(BaseModel):
     renew: int
 
     def __str__(self):
-        line = "{:<15}: {} {} {:<10} interest: {}% per day - preset period: {} days".format(
+        line = "{:<15}: {} {} {:<10.2f} interest: {:.4f}% per day - preset period: {} days".format(
             self.id,
             self.date_created,
             self.symbol,
-            round(self.amount_symbol, 2),
-            f"{self.rate * 100}",
+            self.amount_symbol,
+            self.rate * 100,
             self.period
         )
 
