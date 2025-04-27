@@ -1,5 +1,8 @@
 # SelfDriveFinancialResources
 
+> [!IMPORTANT]
+> [Bitfinex to Wind Down Lending Pro](https://www.bitfinex.com/posts/1054)
+
 This little helpmate keeps your finances as much as possible on offer for lending.
 Every 5 minutes, it looks to see if any money has been released from previous loans
 (or if new money has been added), and if the amount is greater than $150 (the current lowest possible amount for 1 offer),
