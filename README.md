@@ -78,3 +78,9 @@ Real demo usage:
 ```shell
 python3 set_best_rate.py -D 1 -S cascade -FBS WALL -CL 5 -CS 2 -CVM down
 ```
+
+Bids set in cascade mode
+![Bids set in cascade mode](chart_001.PNG)
+
+![chart_002.PNG](chart_002.PNG)
+![chart_003_the_wall.PNG](chart_003_the_wall.PNG)
