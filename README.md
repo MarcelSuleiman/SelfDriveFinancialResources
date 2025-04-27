@@ -38,6 +38,7 @@ or you can download it manually & unzip
 6) Open file `secrets_template.env` in text editor, fill `API_KEY` and `API_SECRET` from Bitfinex, save and close it.
 7) Rename file from `secrets_template.env` to `secrets.env`
 8) Navigate your terminal (bash, cmd, powershell, ...) to folder `..\SelfDriveFinancialResources` and run command:
+* `pip install -r requirements.txt` to install all necessary libraries
 * `python set_best_rate.py -h` to see all available arguments:
 ```usage: SelfDriveFinancialResource [-h] [-D {0,1}] [-C {USD,USDT,LTC}] [-S {cascade,single}] [-CL {1,2,3,4,5,6,7,8,9}] [-CS {1,2,3,4,5,6,7,8,9}] [-CVM {up,down}] [-FBS {FRR,WALL}]
 
