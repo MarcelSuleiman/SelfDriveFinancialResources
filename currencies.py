@@ -1,0 +1,1 @@
+CURRENCIES = ["USD", "USDT", "EUR"]
