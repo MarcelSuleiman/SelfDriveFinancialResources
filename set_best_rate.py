@@ -25,9 +25,6 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(script_dir, "secrets.env"))
 load_dotenv(os.path.join(script_dir, "setup.env"))
 
-# load_dotenv("secrets.env")
-# load_dotenv("setup.env")
-
 SYMBOL = os.getenv("SYMBOL")
 
 MAX_RATE = float(os.getenv("MAX_RATE"))
