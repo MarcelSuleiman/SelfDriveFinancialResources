@@ -1,5 +1,13 @@
 import os
 import sys
+from datetime import datetime
+from datetime import timedelta
+from time import sleep
+
+import argparse
+from argparse import RawTextHelpFormatter
+from dotenv import load_dotenv
+from statistics import mean
 
 from models import ActiveFunding
 from models import FundingOfferArray
@@ -7,25 +15,8 @@ from models import TickerFunding
 from models import TickerTrading
 from models import SubmittedFundingOffer
 
-
-# local_dir = os.path.dirname(__file__)
-# lib_dir = os.path.dirname(os.path.dirname(__file__)) + "\\lib\\UnofficialBitfinexGateway"
-# sys.path.insert(0, local_dir)
-# sys.path.insert(0, lib_dir)
-from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
-
-# sys.path.insert(0, '..')
-# sys.path.append('../')
-# from UnofficialBitfinexGateway.bfxg import BitfinexClient
-
-import argparse
-from argparse import RawTextHelpFormatter
-from dotenv import load_dotenv
-from datetime import datetime
-from datetime import timedelta
-from time import sleep
-from statistics import mean
-# import sqlite3
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
