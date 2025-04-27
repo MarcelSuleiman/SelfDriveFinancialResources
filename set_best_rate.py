@@ -441,4 +441,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # TODO replace all prints by logger - to console & log file
     main()
