@@ -11,9 +11,12 @@ from input_parser import compose_input_parser
 from services.active_funding_service import get_active_fundings
 from services.ticker_object import generate_ticker_object
 from strategies import set_best_rate_small_cascade, set_best_rate
+from utils import get_cascade_level, get_unix_time
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from UnofficialBitfinexGateway.bfxg import BitfinexClient
+# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# from UnofficialBitfinexGateway.bfxg import BitfinexClient
+
+from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 
 def check_amount_of_funds(available_balance: float, cascade_levels: int) -> bool:
@@ -107,8 +110,17 @@ def main():
                         f"for {args.cascade_levels} levels. "
                         f"Minimal required amount is: {150 * int(args.cascade_levels)}"
                     )
-                    # TODO: add decreasing cascade levels to fit minimal requirements
-                    args.strategy = "single"
+
+                    cs = get_cascade_level(available_balance=available_balance)
+                    set_best_rate_small_cascade(
+                        client=client,
+                        symbol=SYMBOL,
+                        available_balance=available_balance,
+                        cascade_levels=int(cs),
+                        strategy=args.funding_book_strategy,
+                        cs_step=args.cascade_steps,
+                        cascade_vertical_movement=args.cascade_vertical_movement,
+                    )
 
             if args.strategy == "single":
                 set_best_rate(
