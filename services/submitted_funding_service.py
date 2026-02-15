@@ -1,38 +1,67 @@
+import inspect
+from typing import Any, get_origin, Union, get_args, Type
+
+from pydantic import BaseModel
+
 from models import FundingOfferArray
 from models import SubmittedFundingOffer
 
 
-def generate_offer_object(resp: list[str]) -> SubmittedFundingOffer:
-    offer = SubmittedFundingOffer(
-        mst=resp[0],
-        type_=resp[1],
-        msg_id=resp[2],
-        none1=resp[3],
-        funding_offer_array=FundingOfferArray(
-            id_=resp[4][0],
-            symbol=resp[4][1],
-            mts_created=resp[4][2],
-            mts_updated=resp[4][3],
-            amount=resp[4][4],
-            amount_original=resp[4][5],
-            offer_type=resp[4][6],
-            none1=resp[4][7],
-            none2=resp[4][8],
-            flags=resp[4][9],
-            offer_status=resp[4][10],
-            none3=resp[4][11],
-            none4=resp[4][12],
-            none5=resp[4][13],
-            rate=resp[4][14],
-            period=resp[4][15],
-            notify=resp[4][16],
-            hidden=resp[4][17],
-            none6=resp[4][18],
-            renew=resp[4][19]
-        ),
-        code=resp[5],
-        status=resp[6],
-        text=resp[7]
-    )
+def generate_offer_object(resp: list[Any]) -> SubmittedFundingOffer or BaseModel:
+    # # vytvor dict pre vnorený objekt
+    # funding_fields = FundingOfferArray.__fields__.keys()
+    # funding_dict = dict(zip(funding_fields, resp[4]))
+    #
+    # funding_offer = FundingOfferArray(**funding_dict)
+    #
+    # # vytvor dict pre hlavný objekt
+    # main_fields = ['mst', 'type_', 'msg_id', 'none1', 'funding_offer_array', 'code', 'status', 'text']
+    # main_values = [resp[0], resp[1], resp[2], resp[3], funding_offer, resp[5], resp[6], resp[7]]
+    # return SubmittedFundingOffer(**dict(zip(main_fields, main_values)))
+    return from_list(SubmittedFundingOffer, resp)
 
-    return offer
+
+def from_list(model_cls: Type[BaseModel], values: list[Any]) -> BaseModel:
+    """
+    Automaticky namapuje list hodnôt na Pydantic model (vrátane vnorených).
+    """
+    field_names = list(model_cls.__fields__.keys())
+    kwargs = {}
+
+    value_idx = 0
+
+    for field_name in field_names:
+        if value_idx >= len(values):
+            break
+
+        field = model_cls.__fields__[field_name]
+        field_type = field.annotation
+
+        value = values[value_idx]
+
+        # Zisti, či field je vnorený Pydantic model
+        is_nested_model = (
+            isinstance(field_type, type) and
+            issubclass(field_type, BaseModel)
+        )
+
+        # Ak je to Optional[PydanticModel], extrahuj typ
+        if get_origin(field_type) is Union:
+            args = get_args(field_type)
+            if any(issubclass(arg, BaseModel) for arg in args if isinstance(arg, type)):
+                for arg in args:
+                    if isinstance(arg, type) and issubclass(arg, BaseModel):
+                        field_type = arg
+                        is_nested_model = True
+                        break
+
+        if is_nested_model and isinstance(value, list):
+            # Rekurzívne zavolaj pre vnorený model
+            nested_instance = from_list(field_type, value)
+            kwargs[field_name] = nested_instance
+        else:
+            kwargs[field_name] = value
+
+        value_idx += 1
+
+    return model_cls(**kwargs)

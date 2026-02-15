@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 from statistics import mean
 
 from config import PERCENTAGE_FOR_WALL_LEVEL, MAX_TOTAL_VALUE
@@ -31,6 +32,8 @@ def get_wall(client: BitfinexClient, symbol: str):
 
         current_level_amount = row[2]
         # print(current_level_amount)
+        # print(f" FIRST: {previous_level_amount * 100 / current_level_amount}")
+        # print(f" SECOND: {current_level_amount}")
 
         if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
             wall_level = row[0]
@@ -65,4 +68,22 @@ def get_average_max_rate(data: list) -> float:
         temp.append(r[3])
 
     return mean(temp)
+
+
+def get_cascade_level(available_balance: float):
+    return available_balance // 150
+
+
+def get_unix_time(date: str) -> int:
+    """
+    Converts a date string in the format "DD-MM-YYYY" to a Unix timestamp.
+
+    Args:
+        date (str): Date string in format "DD-MM-YYYY".
+
+    Returns:
+        int: Unix timestamp (seconds since 1970-01-01).
+    """
+    dt = datetime.strptime(date, "%d-%m-%Y")
+    return int(dt.timestamp() * 1000)
 

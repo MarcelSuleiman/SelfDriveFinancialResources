@@ -32,7 +32,7 @@ def compose_input_parser():
     )
     parser.add_argument(
         "-CL", "--cascade_levels",
-        choices=[str(i) for i in range(1, 10)],  # ["1", "2", ... "9"]
+        choices=[str(i) for i in range(1, 20)],  # ["1", "2", ... "9"]
         default="2",
         type=str,
         help="How many levels to apply - but how many parts to divide the amount.\n"
