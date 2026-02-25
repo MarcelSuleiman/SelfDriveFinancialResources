@@ -10,7 +10,7 @@ from utils import get_frr
 from utils import get_wall
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from UnofficialBitfinexGateway.bfxg import BitfinexClient
+from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 
 def set_best_rate_small_cascade(

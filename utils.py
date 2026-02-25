@@ -6,7 +6,7 @@ from statistics import mean
 from config import PERCENTAGE_FOR_WALL_LEVEL, MAX_TOTAL_VALUE
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from UnofficialBitfinexGateway.bfxg import BitfinexClient
+from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 
 def get_frr(client: BitfinexClient, symbol: str):
