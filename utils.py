@@ -6,7 +6,7 @@ from statistics import mean
 from config import PERCENTAGE_FOR_WALL_LEVEL, MAX_TOTAL_VALUE
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from UnofficialBitfinexGateway.bfxg import BitfinexClient
+from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 
 def get_frr(client: BitfinexClient, symbol: str):
@@ -31,9 +31,6 @@ def get_wall(client: BitfinexClient, symbol: str):
             continue
 
         current_level_amount = row[2]
-        # print(current_level_amount)
-        # print(f" FIRST: {previous_level_amount * 100 / current_level_amount}")
-        # print(f" SECOND: {current_level_amount}")
 
         if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
             wall_level = row[0]
@@ -46,19 +43,13 @@ def get_wall(client: BitfinexClient, symbol: str):
 
 
 def display_float_value(v: float) -> str:
-    # v = round(v, 8)
     v = f"{v:.8f}"
     return v
 
 
 def get_candles(client: BitfinexClient, symbol: str):
     result = client.get_candles(symbol, limit=5)
-
-    print(result)
-
     result = get_average_max_rate(result)
-
-    print(result)
     return result
 
 
@@ -86,4 +77,3 @@ def get_unix_time(date: str) -> int:
     """
     dt = datetime.strptime(date, "%d-%m-%Y")
     return int(dt.timestamp() * 1000)
-
