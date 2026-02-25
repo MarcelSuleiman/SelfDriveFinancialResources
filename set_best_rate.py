@@ -18,9 +18,6 @@ from services.ticker_object import generate_ticker_object
 from strategies import set_best_rate_small_cascade, set_best_rate
 from utils import get_cascade_level, get_unix_time
 
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-# from UnofficialBitfinexGateway.bfxg import BitfinexClient
-
 from lib.UnofficialBitfinexGateway.bfxg import BitfinexClient
 
 
@@ -74,18 +71,10 @@ def main(logger):
     args = compose_input_parser()
 
     min_amount = get_min_amount(client=client)
-    submitted_orders = client.get_submitted_funding_orders(f"f{SYMBOL}")  # actual running fundings
-    submitted_orders = client.get_submitted_funding_orders_history(f"f{SYMBOL}")  # history running fundings
+    submitted_orders = client.get_submitted_funding_orders_history(f"f{SYMBOL}")
     submitted_orders = get_fundings_credit_history(submitted_orders)
-    # submitted_orders = client.history_funding_orders(f"f{SYMBOL}")
     for so in submitted_orders:
         print(so)
-
-
-    # summary max for last 30 days
-    # summary_info = client.get_earning_summary()
-    # for si in summary_info:
-    #     print(si)
 
     today = datetime.today()
 
@@ -96,9 +85,7 @@ def main(logger):
     last_day = calendar.monthrange(today.year, today.month)[1]
     end_date = today.replace(day=last_day, hour=23, minute=59, second=59, microsecond=0)
 
-    # start = get_unix_time(date="01-06-2025")
     start = get_unix_time(date=start_date.strftime("%d-%m-%Y"))
-    # end = get_unix_time(date="30-06-2025")
     end = get_unix_time(date=end_date.strftime("%d-%m-%Y"))
     payload = {
         'category': 28,  # interest payment
@@ -116,34 +103,27 @@ def main(logger):
     end = datetime.fromtimestamp(int(end) / 1000)
     print(f"From {start} to {end} customer earns: {round(total_sum, 2)}$.")
 
-    # exit(5)
-
-    # led = client.ledgers(currency="USD", **{'limit': 2})
-    # for l in led:
-    #     print(l)
-
     while True:
         list_active_funding_orders = get_active_fundings(get_active_funding_orders(client=client))
 
         if len(list_active_funding_orders) > 0:
-            # print("Currently active funding(s):")
+            now = datetime.today()
+            frame = now - timedelta(hours=4)
             for row in list_active_funding_orders:
-                # print(row)
-                now = datetime.today()
-                delta = timedelta(hours=4)
-                frame = now - delta
-
                 if frame > row.date_created:
                     client.set_cancel_funding_order(row.id)
 
         wallets = client.get_wallets()
         available_balance = get_available_balance_from_proper_wallet(wallets=wallets, symbol=SYMBOL)
-        # available_balance = 10000
+
+        if available_balance is None:
+            logger.error(f"No {SYMBOL} wallet found")
+            sys.exit(1)
+
         t = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-        # print(f"{t}\tThe available balance on the account is: {round(available_balance, 2)} {SYMBOL}")
         logger.info(f"{t}\tThe available balance on the account is: {round(available_balance, 2)} {SYMBOL}")
 
-        if available_balance is not None and available_balance >= min_amount:
+        if available_balance >= min_amount:
 
             if args.strategy == "cascade":
                 valid_amount = check_amount_of_funds(available_balance, int(args.cascade_levels))
@@ -158,18 +138,11 @@ def main(logger):
                         cascade_vertical_movement=args.cascade_vertical_movement,
                     )
                 else:
-                    # print(
-                    #     f"Available amount of funds: {available_balance} is not enough "
-                    #     f"for {args.cascade_levels} levels. "
-                    #     f"Minimal required amount is: {150 * int(args.cascade_levels)}"
-                    # )
                     logger.info(
                         f"Available amount of funds: {available_balance} is not enough "
                         f"for {args.cascade_levels} levels. "
                         f"Minimal required amount is: {150 * int(args.cascade_levels)}"
                     )
-                    # TODO: add decreasing cascade levels to fit minimal requirements
-                    # args.strategy = "single"
                     cs = get_cascade_level(available_balance=available_balance)
                     set_best_rate_small_cascade(
                         client=client,
@@ -181,19 +154,13 @@ def main(logger):
                         cascade_vertical_movement=args.cascade_vertical_movement,
                     )
 
-            if args.strategy == "single":
+            elif args.strategy == "single":
                 set_best_rate(
                     client=client,
                     symbol=SYMBOL,
                     available_balance=available_balance,
                     strategy=args.funding_book_strategy,
                 )
-
-        if available_balance is None:
-            print(
-                f"No {SYMBOL} wallet found"
-            )
-            sys.exit(1)
 
         if args.daemon == "1":
             sleep(5 * 60)  # every 5 minutes...
@@ -210,5 +177,4 @@ if __name__ == "__main__":
         max_bytes=1024 * 1024 * 5,  # 5 MB
         backup_count=5
     )
-    # TODO replace all prints by logger - to console & log file
     main(logger=logger)

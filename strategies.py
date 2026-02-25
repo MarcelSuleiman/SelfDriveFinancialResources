@@ -34,11 +34,11 @@ def set_best_rate_small_cascade(
         temp_balance = available_balance - ((cascade_levels-1)*temp)
 
         for i in range(cascade_levels-1):
-            # mean if step is 1 => 0.00001, if 3 -> 0.00003 etc
+            # step is multiplied by 0.00001, so cs_step=1 => 0.00001, cs_step=3 => 0.00003
             if cascade_vertical_movement == "down":
-                my_rate -= float("0.0000"+cs_step)
+                my_rate -= int(cs_step) * 0.00001
             elif cascade_vertical_movement == "up":
-                my_rate += float("0.0000" + cs_step)
+                my_rate += int(cs_step) * 0.00001
             else:
                 raise ValueError(f"Vertical movement value {cascade_vertical_movement} is not valid.")
 
@@ -59,11 +59,11 @@ def set_best_rate_small_cascade(
             offer = generate_offer_object(resp)
             print(offer)
 
-        # mean if step is 1 => 0.00001, if 3 -> 0.00003 etc
+        # step is multiplied by 0.00001, so cs_step=1 => 0.00001, cs_step=3 => 0.00003
         if cascade_vertical_movement == "down":
-            my_rate -= float("0.0000" + cs_step)
+            my_rate -= int(cs_step) * 0.00001
         elif cascade_vertical_movement == "up":
-            my_rate += float("0.0000" + cs_step)
+            my_rate += int(cs_step) * 0.00001
 
         _type = "LIMIT"
         _symbol = f"f{symbol}"
@@ -98,15 +98,18 @@ def set_best_rate(
     if strategy == "FRR":
         my_rate = get_frr(client=client, symbol=f"f{symbol}")
 
-    if strategy == "WALL":
+    elif strategy == "WALL":
         my_rate = get_wall(
             client=client,
             symbol=f"f{symbol}",
         )
 
-    if strategy == "mean_daily_high":
+    elif strategy == "mean_daily_high":
         mean_daily_high = get_candles(client=client, symbol=f"f{symbol}")
         my_rate = mean_daily_high
+
+    else:
+        raise ValueError(f"Unknown strategy: '{strategy}'")
 
     my_rate -= 0.00001
 
