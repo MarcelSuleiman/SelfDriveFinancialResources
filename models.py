@@ -102,7 +102,7 @@ class HistoryFundingOrders(BaseModel):
     date_updated: datetime
     amount: float
     amount_symbol: float
-    _type: str
+    order_type: str
     none1: None = None
     none2: None = None
     none3: None = None
