@@ -64,7 +64,6 @@ class FundingOfferArray(BaseModel):
 
     @field_validator("mts_created", "mts_updated", mode="before")
     def convert_timestamp(cls, t: int) -> str:
-        # date_ = str(datetime.fromtimestamp(int(t)/1000))
         date_ = datetime.fromtimestamp(t / 1000).strftime("%Y-%m-%d %H:%M:%S")
         return date_
 
@@ -74,7 +73,7 @@ class SubmittedFundingOffer(BaseModel):
     type_: str
     msg_id: Optional[int] = None
     none1: Optional[None] = None
-    funding_offer_array: FundingOfferArray or None = None
+    funding_offer_array: Optional[FundingOfferArray] = None
     code: Optional[int] = None
     status: str
     text: str
@@ -99,12 +98,11 @@ class SubmittedFundingOffer(BaseModel):
 class HistoryFundingOrders(BaseModel):
     order_id: str
     symbol: str
-    date_created: str
-    date_updated: str
-    amount: int
-    amount_symbol: int
+    date_created: datetime
+    date_updated: datetime
+    amount: float
+    amount_symbol: float
     _type: str
-    # flags: object
     none1: None = None
     none2: None = None
     none3: None = None
@@ -116,11 +114,11 @@ class HistoryFundingOrders(BaseModel):
     rate: float
     period: int
 
-    @field_validator("date_created", "date_updated")
-    def convert_timestamp(cls, t: str) -> datetime:
-        # date_ = str(datetime.fromtimestamp(int(t)/1000))
-        date_ = datetime.fromtimestamp(int(t)/1000)
-        return date_
+    @field_validator("date_created", "date_updated", mode="before")
+    def convert_timestamp(cls, t) -> datetime:
+        if isinstance(t, datetime):
+            return t
+        return datetime.fromtimestamp(int(t) / 1000)
 
 
 class ActiveFunding(BaseModel):

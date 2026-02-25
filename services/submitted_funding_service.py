@@ -1,4 +1,3 @@
-import inspect
 from typing import Any, get_origin, Union, get_args, Type
 
 from pydantic import BaseModel
@@ -7,17 +6,7 @@ from models import FundingOfferArray
 from models import SubmittedFundingOffer
 
 
-def generate_offer_object(resp: list[Any]) -> SubmittedFundingOffer or BaseModel:
-    # # vytvor dict pre vnorený objekt
-    # funding_fields = FundingOfferArray.__fields__.keys()
-    # funding_dict = dict(zip(funding_fields, resp[4]))
-    #
-    # funding_offer = FundingOfferArray(**funding_dict)
-    #
-    # # vytvor dict pre hlavný objekt
-    # main_fields = ['mst', 'type_', 'msg_id', 'none1', 'funding_offer_array', 'code', 'status', 'text']
-    # main_values = [resp[0], resp[1], resp[2], resp[3], funding_offer, resp[5], resp[6], resp[7]]
-    # return SubmittedFundingOffer(**dict(zip(main_fields, main_values)))
+def generate_offer_object(resp: list[Any]) -> SubmittedFundingOffer | BaseModel:
     return from_list(SubmittedFundingOffer, resp)
 
 
@@ -25,7 +14,7 @@ def from_list(model_cls: Type[BaseModel], values: list[Any]) -> BaseModel:
     """
     Automaticky namapuje list hodnôt na Pydantic model (vrátane vnorených).
     """
-    field_names = list(model_cls.__fields__.keys())
+    field_names = list(model_cls.model_fields.keys())
     kwargs = {}
 
     value_idx = 0
@@ -34,7 +23,7 @@ def from_list(model_cls: Type[BaseModel], values: list[Any]) -> BaseModel:
         if value_idx >= len(values):
             break
 
-        field = model_cls.__fields__[field_name]
+        field = model_cls.model_fields[field_name]
         field_type = field.annotation
 
         value = values[value_idx]
