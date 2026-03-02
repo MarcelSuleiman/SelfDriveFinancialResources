@@ -52,7 +52,7 @@ def get_active_funding_orders(client: BitfinexClient) -> dict or str:
             return active_funding_orders
         except ConnectionError as ce:
             print(f"{ce.__class__.__name__} - {str(ce)}")
-            print("I will try send request again after 1 second.")
+            print("Retrying in 1 second.")
             sleep(1)
 
 
@@ -101,7 +101,7 @@ def main(logger):
 
     start = datetime.fromtimestamp(int(start) / 1000)
     end = datetime.fromtimestamp(int(end) / 1000)
-    print(f"From {start} to {end} customer earns: {round(total_sum, 2)}$.")
+    print(f"Earnings from {start} to {end}: {round(total_sum, 2)} USD.")
 
     while True:
         list_active_funding_orders = get_active_fundings(get_active_funding_orders(client=client))
@@ -121,7 +121,7 @@ def main(logger):
             sys.exit(1)
 
         t = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-        logger.info(f"{t}\tThe available balance on the account is: {round(available_balance, 2)} {SYMBOL}")
+        logger.info(f"{t}\tAvailable balance in the funding wallet: {round(available_balance, 2)} {SYMBOL}")
 
         if available_balance >= min_amount:
 
@@ -139,9 +139,9 @@ def main(logger):
                     )
                 else:
                     logger.info(
-                        f"Available amount of funds: {available_balance} is not enough "
-                        f"for {args.cascade_levels} levels. "
-                        f"Minimal required amount is: {150 * int(args.cascade_levels)}"
+                        f"Available balance ({available_balance} {SYMBOL}) is insufficient "
+                        f"for {args.cascade_levels} cascade levels. "
+                        f"Minimum required: {150 * int(args.cascade_levels)} {SYMBOL}"
                     )
                     cs = get_cascade_level(available_balance=available_balance)
                     set_best_rate_small_cascade(
