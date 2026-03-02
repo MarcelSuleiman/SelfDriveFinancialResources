@@ -27,12 +27,12 @@ def get_wall(client: BitfinexClient, symbol: str):
     previous_level_amount = 0
     for i, row in enumerate(data):
         if i == 0:
-            previous_level_amount = row[2]
+            previous_level_amount = row[3]
             continue
 
-        current_level_amount = row[2]
+        current_level_amount = row[3]
 
-        if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[2] > MAX_TOTAL_VALUE:
+        if previous_level_amount * 100 / current_level_amount < PERCENTAGE_FOR_WALL_LEVEL and row[3] > MAX_TOTAL_VALUE:
             wall_level = row[0]
             return wall_level
 
