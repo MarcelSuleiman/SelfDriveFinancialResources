@@ -19,12 +19,15 @@ More about funding / lending on Bitfinex (i.e. what is going on?) you can find o
 
 ## how to install
 1) Create new folder and name it as you wish.
-2) Inside new folder run 2 commands:
+2) Inside new folder run commands:
 ```sh
 git clone https://github.com/MarcelSuleiman/SelfDriveFinancialResources.git
 ```
 
 ```sh
+cd SelfDriveFinancialResources
+mkdir lib
+cd lib
 git clone https://github.com/MarcelSuleiman/UnofficialBitfinexGateway.git
 ```
 or you can download it manually & unzip
@@ -39,7 +42,7 @@ or you can download it manually & unzip
 7) Rename file from `secrets_template.env` to `secrets.env`
 8) Navigate your terminal (bash, cmd, powershell, ...) to folder `..\SelfDriveFinancialResources` and run command:
 * `pip install -r requirements.txt` to install all necessary libraries
-* `python set_best_rate.py -h` to see all available arguments:
+* `python main.py -h` to see all available arguments:
 ```usage: SelfDriveFinancialResource [-h] [-D {0,1}] [-C {USD,USDT,LTC}] [-S {cascade,single}] [-CL {1,2,3,4,5,6,7,8,9}] [-CS {1,2,3,4,5,6,7,8,9}] [-CVM {up,down}] [-FBS {FRR,WALL}]
 
 options:
@@ -76,7 +79,7 @@ options:
 ```
 Real demo usage:
 ```shell
-python3 set_best_rate.py -D 1 -S cascade -FBS WALL -CL 5 -CS 2 -CVM down
+python3 main.py -D 1 -S cascade -FBS WALL -CL 5 -CS 2 -CVM down
 ```
 
 Bids set in cascade mode
