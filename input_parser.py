@@ -28,15 +28,15 @@ def compose_input_parser():
              "single: means that the entire available amount is taken and a bid for a single value (interest rate) is entered.\n"
              "cascade: means that the entire available amount is divided into as many parts as specified in the "
              "-CL (--cascade_levels)\n\t parameter and the individual commands are successively set to the values "
-             "calculated on the basis of -CS, -CVM and -FSB"
+             "calculated on the basis of -CS, -CVM and -FBS"
     )
     parser.add_argument(
         "-CL", "--cascade_levels",
         choices=[str(i) for i in range(1, 20)],  # ["1", "2", ... "9"]
         default="2",
         type=str,
-        help="How many levels to apply - but how many parts to divide the amount.\n"
-             "\tExample: 3 means that the notional amount of available funds ($1500) is divided into 3 parts of $500 each"
+        help="The number of cascade levels, i.e. how many parts to split the balance into.\n"
+             "\tExample: 3 levels with $1500 available results in 3 offers of $500 each."
     )
     parser.add_argument(
         "-CS", "--cascade_steps",
@@ -64,10 +64,9 @@ def compose_input_parser():
         help="FRR - This rate is not based on an agreed fixed rate.\n"
              "\tInstead, it is based on the average of all active fixed-rate fundings weighted by their amount.\n"
              "\tThis rate updates once per hour, allowing you to get rates that follow market action.\n"
-             "WALL - the script is trying to find an interest rate where a lot of money has been sent by other people\n"
-             "\tand thus they have created a wall - a dam above which it is very difficult to squeeze the interest because\n"
-             "\tthere are enough funds to cover all the requirements. The WALL value lowers the interest by 0.0001 and\n"
-             "\tsets the bid to an achievable value. This is usually more than the current FRR."
+             "WALL - scans the order book for the first rate level where borrower demand is disproportionately large.\n"
+             "\tThis concentration acts as a support floor. The offer is placed just below the wall (- 0.00001),\n"
+             "\tmaximising fill probability at the highest achievable rate. Usually yields more than FRR."
     )
 
     return parser.parse_args()
