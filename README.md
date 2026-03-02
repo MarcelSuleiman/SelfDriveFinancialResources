@@ -1,89 +1,271 @@
-# SelfDriveFinancialResources
+# SelfDrive Financial Resources
 
-> [!IMPORTANT]
-> [Bitfinex to Wind Down Lending Pro](https://www.bitfinex.com/posts/1054)
+> **Automated Bitfinex Funding Bot** — maximize your passive income by placing funding offers at the optimal market rate, 24/7, without lifting a finger.
 
-This little helpmate keeps your finances as much as possible on offer for lending.
-Every 5 minutes, it looks to see if any money has been released from previous loans
-(or if new money has been added), and if the amount is greater than $150 (the current lowest possible amount for 1 offer),
-it calculates the ideal interest rate, making sure that the rate is slightly lower than the 
-[FRR](https://support.bitfinex.com/hc/en-us/articles/213919009-What-is-the-Bitfinex-Funding-Flash-Return-Rate) 
-or slightly lower than the wall of a large amount of accumulated money at one level of the interest rate.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Code style](https://img.shields.io/badge/code%20style-typed-brightgreen)](https://mypy.readthedocs.io/)
 
-If the offer does not meet the demand, the offer will be cancelled and the script will recalculate the ideal interest 
-rate again based on the current situation and the new data and re-initiate the offer.
+---
 
-More about funding / lending on Bitfinex (i.e. what is going on?) you can find on their 
-[official page](https://support.bitfinex.com/hc/en-us/articles/214441185-What-is-Margin-Funding)
+> [!NOTE]
+> Bitfinex has [shut down its own Lending Pro tool](https://www.bitfinex.com/posts/1054).
+> This bot was built as an independent replacement — giving you back full control over your funding strategy without relying on Bitfinex's native automation.
 
+---
 
-## how to install
-1) Create new folder and name it as you wish.
-2) Inside new folder run commands:
-```sh
+## What It Does
+
+Bitfinex's margin funding market lets you **lend your crypto assets** to traders who need leverage — and earn daily interest in return. The catch? Rates fluctuate constantly, and manually re-posting offers every few hours is tedious and often leaves money on the table.
+
+**SelfDrive Financial Resources** eliminates that friction entirely.
+
+Every 5 minutes the bot:
+1. Checks your funding wallet for available balance
+2. Cancels stale offers that have not been filled within 4 hours
+3. Analyses the live order book to find the **ideal entry rate**
+4. Places new offers automatically — at the right rate, for the right period
+
+You set it up once. The bot handles everything else.
+
+---
+
+## Key Features
+
+| Feature | Description |
+|---|---|
+| **Two Rate Strategies** | `FRR` follows the market Flash Return Rate; `WALL` detects large liquidity walls and undercuts them |
+| **Cascade Offers** | Split your balance into multiple offers at staggered rates — maximising fill probability |
+| **Smart Period Selection** | Automatically chooses 2-day or 30-day loan periods based on current rate thresholds |
+| **Auto-Cancellation** | Stale orders older than 4 hours are cancelled and re-evaluated automatically |
+| **Multi-Currency** | Supports `USD`, `USDT`, and `LTC` funding wallets |
+| **Monthly P&L Reporting** | Prints your total earned interest for the current calendar month on startup |
+| **Daemon Mode** | Runs as a continuous background loop or executes a single pass and exits |
+| **Rotating Logs** | Structured logging to `app.log` with automatic 5 MB rotation and 5 backup files |
+| **Pydantic v2 Models** | All API responses are validated and typed — no silent data errors |
+
+---
+
+## How It Works
+
+```
++----------------------------------------------------------+
+|                        main.py                           |
+|                  (main entry point)                      |
++-------------------+---------------------+----------------+
+                    |                     |
+         +----------v----------+ +--------v-----------+
+         |  Strategy: single   | |  Strategy: cascade |
+         |                     | |                    |
+         | Place full balance  | | Split balance into |
+         | as one offer at     | | N levels at        |
+         | optimal rate        | | staggered rates    |
+         +----------+----------+ +--------+-----------+
+                    |                     |
+         +----------v---------------------v-----------+
+         |              Rate Calculation               |
+         |                                             |
+         |  FRR mode:  Flash Return Rate - 0.00001     |
+         |  WALL mode: First liquidity wall - 0.00001  |
+         +---------------------------------------------+
+```
+
+### Rate Strategies Explained
+
+**FRR (Flash Return Rate)**
+The FRR is Bitfinex's own market average — a weighted average of all active fixed-rate fundings, updated hourly. The bot places your offer just below FRR to ensure competitive positioning while tracking market movement automatically.
+
+**WALL (Liquidity Wall)**
+The bot scans the full order book and identifies the first price level where an unusually large amount of capital has accumulated — a "wall". Positioning just below this wall typically yields a higher rate than FRR while still guaranteeing fast execution.
+
+---
+
+## Screenshots
+
+**Cascade offers placed at staggered rates across 5 levels:**
+
+![Cascade offers in funding book](chart_001.PNG)
+
+**Order book view showing active offers:**
+
+![Active funding offers](chart_002.PNG)
+
+**Identifying the liquidity wall in the order book:**
+
+![Wall detection in the order book](chart_003_the_wall.PNG)
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10 or higher
+- A [Bitfinex](https://www.bitfinex.com/) account with funds in a **Funding wallet**
+- A Bitfinex API key with **Margin Funding** permissions only
+
+### Installation
+
+**1. Clone the main repository and its dependency:**
+
+```bash
+mkdir my-funding-bot && cd my-funding-bot
+
 git clone https://github.com/MarcelSuleiman/SelfDriveFinancialResources.git
-```
-
-```sh
-cd SelfDriveFinancialResources
-mkdir lib
-cd lib
+mkdir lib && cd lib
 git clone https://github.com/MarcelSuleiman/UnofficialBitfinexGateway.git
-```
-or you can download it manually & unzip
-
-## how to set up & run
-1) If you don't already have an account on [Bitfinex](https://www.bitfinex.com/), you need to open one.
-2) Create api keys [link](https://setting.bitfinex.com/api#my-keys).
-3) All setting keep as is except one: under `Margin Funding` find `Offer, cancel and close funding` set it as __enable__.
-4) Save & close.
-5) Go to `SelfDriveFinancialResources` folder.
-6) Open file `secrets_template.env` in text editor, fill `API_KEY` and `API_SECRET` from Bitfinex, save and close it.
-7) Rename file from `secrets_template.env` to `secrets.env`
-8) Navigate your terminal (bash, cmd, powershell, ...) to folder `..\SelfDriveFinancialResources` and run command:
-* `pip install -r requirements.txt` to install all necessary libraries
-* `python main.py -h` to see all available arguments:
-```usage: SelfDriveFinancialResource [-h] [-D {0,1}] [-C {USD,USDT,LTC}] [-S {cascade,single}] [-CL {1,2,3,4,5,6,7,8,9}] [-CS {1,2,3,4,5,6,7,8,9}] [-CVM {up,down}] [-FBS {FRR,WALL}]
-
-options:
-  -h, --help            show this help message and exit
-  -D {0,1}, --daemon {0,1}
-                        This sets whether the script should run in a loop (value 1) or shut down (value 0) after a bid is placed on the market.
-  -C {USD,USDT,LTC}, --currency {USD,USDT,LTC}
-                        What currency to be processed.
-  -S {cascade,single}, --strategy {cascade,single}
-                        Which strategy should be applied when placing a bid.
-                        single: means that the entire available amount is taken and a bid for a single value (interest rate) is entered.
-                        cascade: means that the entire available amount is divided into as many parts as specified in the -CL (--cascade_levels)
-                                 parameter and the individual commands are successively set to the values calculated on the basis of -CS, -CVM and -FSB
-  -CL {1,2,3,4,5,6,7,8,9}, --cascade_levels {1,2,3,4,5,6,7,8,9}
-                        How many levels to apply - but how many parts to divide the amount.
-                                Example: 3 means that the notional amount of available funds ($1500) is divided into 3 parts of $500 each
-  -CS {1,2,3,4,5,6,7,8,9}, --cascade_steps {1,2,3,4,5,6,7,8,9}
-                        In what steps will the interest rates be adjusted depending on the -CVM value.
-                                Example: a value of 2 at the current interest rate of 0.045 percent per day (mathematically 0.00045)
-                                means that 1 bid will be at 0.00045, the second at 0.00043, the third at 0.00041, etc.
-  -CVM {up,down}, --cascade_vertical_movement {up,down}
-                        In case of cascade and -CS higher than 1 in which direction the levels should be set.
-                        up - means 0.045, 0.046, 0.047...
-                        down - 0.045, 0.044, 0.043...
-  -FBS {FRR,WALL}, --funding_book_strategy {FRR,WALL}
-                        FRR - This rate is not based on an agreed fixed rate.
-                                Instead, it is based on the average of all active fixed-rate fundings weighted by their amount.
-                                This rate updates once per hour, allowing you to get rates that follow market action.
-                        WALL - the script is trying to find an interest rate where a lot of money has been sent by other people
-                                and thus they have created a wall - a dam above which it is very difficult to squeeze the interest because
-                                there are enough funds to cover all the requirements. The WALL value lowers the interest by 0.0001 and
-                                sets the bid to an achievable value. This is usually more than the current FRR.
-
-```
-Real demo usage:
-```shell
-python3 main.py -D 1 -S cascade -FBS WALL -CL 5 -CS 2 -CVM down
+cd ..
 ```
 
-Bids set in cascade mode
-![Bids set in cascade mode](chart_001.PNG)
+Your folder structure should look like this:
 
-![chart_002.PNG](chart_002.PNG)
-![chart_003_the_wall.PNG](chart_003_the_wall.PNG)
+```
+my-funding-bot/
++-- SelfDriveFinancialResources/
+  |-- lib/
+    +-- UnofficialBitfinexGateway/
+```
+
+**2. Install dependencies:**
+
+```bash
+pip install -r requirements.txt
+```
+
+### Configuration
+
+**Step 1 — Create API keys on Bitfinex**
+
+Go to [Bitfinex API Settings](https://setting.bitfinex.com/api#my-keys) and create a new key with **only** the following permission enabled:
+
+> `Margin Funding` > `Offer, cancel and close funding` > **Enable**
+
+Keep all other permissions **disabled**. The bot never needs withdraw access.
+
+**Step 2 — Add your credentials**
+
+Copy `secrets_template.env` to `secrets.env` and fill in your keys:
+
+```bash
+cp secrets_template.env secrets.env
+```
+
+```env
+# secrets.env
+API_KEY="your_api_key_here"
+API_SECRET="your_api_secret_here"
+```
+
+> [!WARNING]
+> Never commit `secrets.env` to version control. It is already excluded via `.gitignore`.
+
+**Step 3 — Review rate settings (optional)**
+
+Sensible defaults are pre-configured in `setup.env`. Edit only if you know what you are doing:
+
+```env
+SYMBOL="USD"                    # Currency to lend
+MIN_RATE="0.00020"              # Never lend below this daily rate (~7.3% APR)
+MAX_RATE="0.001"                # Safety cap on maximum rate
+MIN_FOR_30D="0.00029"           # Rate threshold for 30-day loan period
+PERCENTAGE_FOR_WALL_LEVEL="30"  # Wall detection sensitivity (%)
+MAX_TOTAL_VALUE="80000000"      # Minimum wall size in USD to qualify
+```
+
+---
+
+## Usage
+
+**Verify installation and see all options:**
+
+```bash
+python main.py -h
+```
+
+**Recommended production command** — daemon mode, cascade strategy, wall-based pricing, 5 levels stepping down:
+
+```bash
+python main.py -D 1 -S cascade -FBS WALL -CL 5 -CS 2 -CVM down
+```
+
+**Simple single-offer mode** — full balance, one offer, FRR-based rate:
+
+```bash
+python main.py -D 1 -S single -FBS FRR
+```
+
+**One-shot mode** — place offers once and exit (useful for cron jobs):
+
+```bash
+python main.py -D 0 -S cascade -FBS WALL -CL 3 -CS 1 -CVM down
+```
+
+---
+
+## CLI Reference
+
+| Argument | Values | Description |
+|---|---|---|
+| `-D`, `--daemon` | `0` / `1` | `1` = run continuously every 5 min; `0` = run once and exit |
+| `-C`, `--currency` | `USD` `USDT` `LTC` | Funding wallet currency to process |
+| `-S`, `--strategy` | `single` `cascade` | Offer placement strategy |
+| `-FBS`, `--funding_book_strategy` | `FRR` `WALL` | Rate calculation method |
+| `-CL`, `--cascade_levels` | `1`-`9` | Number of cascade levels (how many offers) |
+| `-CS`, `--cascade_steps` | `1`-`9` | Rate step between levels (x 0.00001 per step) |
+| `-CVM`, `--cascade_vertical_movement` | `up` `down` | Direction of rate stepping across levels |
+
+### Strategy: `single`
+
+Places your entire available balance as one offer at the calculated optimal rate. Simple and predictable.
+
+### Strategy: `cascade`
+
+Splits your balance into `N` equal parts and places offers at `N` consecutive rate levels. This increases the probability that at least part of your balance is filled even when the top rate faces competition.
+
+**Example** — 3 cascade levels, step 2, direction `down`, base rate `0.00045`:
+
+| Offer | Rate | Amount |
+|---|---|---|
+| 1 | `0.00045` | $300 |
+| 2 | `0.00043` | $300 |
+| 3 | `0.00041` | $300 |
+
+---
+
+## Project Structure
+
+```
+SelfDriveFinancialResources/
++-- main.py                   # Core loop — balance check, offer placement, cancellation
++-- strategies.py             # single / cascade offer logic
++-- utils.py                  # FRR fetch, wall detection, helpers
++-- models.py                 # Pydantic v2 data models
++-- input_parser.py           # CLI argument definitions
++-- config.py                 # Environment variable loading
++-- logger.py                 # Rotating log setup
++-- currencies.py             # Supported currency constants
++-- services/                 # Bitfinex API response parsers
++-- setup.env                 # Non-sensitive configuration
++-- secrets_template.env      # API credentials template (safe to commit)
+```
+
+---
+
+## Security
+
+- The bot requires **only** `Margin Funding → Offer, cancel and close funding` — no withdraw, no trade permissions.
+- API credentials live in a local `secrets.env` file that is never committed to version control.
+- The bot places and cancels funding offers only. It cannot move, withdraw, or trade any funds.
+
+---
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.
